@@ -5,10 +5,10 @@ export default function SignIn() {
     <form
       action={async () => {
         "use server"
-        await signIn("linkedin", {redirectTo: "/profile"})
+        await signIn("linkedin, facebook, wordpress", {redirectTo: "/profile"})
       }}
     >
-      <button type="submit">Signin with LinkedIn</button>
+      <button type="submit">Get started!</button>
     </form>
   )
 } 
