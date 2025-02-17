@@ -9,17 +9,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { siteId, title, content } = await request.json();
+    const { siteId, title, content, pageId } = await request.json();
 
-    if (!siteId) {
+    if (!siteId || !title || !content) {
       return NextResponse.json(
-        { error: "No WordPress site selected" }, 
+        { error: "Site ID, title and content are required" }, 
         { status: 400 }
       );
     }
 
+    // Note the featured_image parameter if you want to set it as the post thumbnail
     const response = await fetch(
-      `https://public-api.wordpress.com/rest/v1.1/sites/${siteId}/posts/new`, {
+      `https://public-api.wordpress.com/rest/v1.1/sites/${siteId}/posts/new`,
+      {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -29,9 +31,17 @@ export async function POST(request: Request) {
           title,
           content,
           status: 'publish',
+          parent_id: pageId || undefined,
+          // If you want the first image to be the featured image, you can parse the content and get the first image ID
+          featured_image: content.match(/wp-image-(\d+)/)?.[1] || undefined
         }),
       }
     );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to publish post');
+    }
 
     const post = await response.json();
     return NextResponse.json(post);
