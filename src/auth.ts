@@ -1,9 +1,13 @@
+
 import NextAuth from "next-auth";
 import Facebook from "next-auth/providers/facebook";
 import LinkedIn from "next-auth/providers/linkedin";
 import WordPress from "next-auth/providers/wordpress";
+import { MongoDBAdapter } from "@auth/mongodb-adapter";
+import clientPromise from "./lib/db"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  adapter: MongoDBAdapter(clientPromise),
   providers: [
     LinkedIn({
       clientId: process.env.LINKEDIN_CLIENT_ID,
@@ -45,15 +49,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, user }) {
       if (account && account.access_token) {
+        token.provider = account.provider;
         token.access_token = account.access_token;
+        token.id = user.id;
       }
       return token;
     },
     async session({ session, token }) {
       if (session) {
         session.access_token = token.access_token as string;
+        session.user.id = token.id as string;
       }
       return session;
     },
@@ -62,4 +69,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     strategy: "jwt",
     maxAge: 24 * 60 * 60, // 24 hours
   },
+  // allowDangerousEmailAccountLinking: true,
 });

@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import LinkedInProfile from "../components/linkedin/LinkedInProfile";
 import LinkedInPostForm from "../components/linkedin/LinkedInPostForm";
 import WordPressPublisher from "../components/wordpress/WordPressPublisher";
-import client from "@/lib/db";
+import FacebookPostForm from "../components/facebook/FacebookPostForm";
+import UnifiedPostForm from "../components/UnifiedPostForm";
 
 export default async function Profile() {
     const session = await auth();
@@ -19,8 +20,10 @@ export default async function Profile() {
         <h1 className="text-2xl font-bold">Profile</h1>
         <p className="text-gray-600">Welcome to your profile page!</p>
         <LinkedInProfile />
-        <LinkedInPostForm />
+        {/* <LinkedInPostForm /> */}
+        {/* <FacebookPostForm /> */}
         <WordPressPublisher />
+        <UnifiedPostForm />
         <SignIn />
         <SignOut />
       </main>
