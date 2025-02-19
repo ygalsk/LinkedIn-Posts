@@ -38,68 +38,85 @@ export default function WordPressPublisher() {
  const [publishing, setPublishing] = useState(false);
  const [error, setError] = useState<string | null>(null);
  const [success, setSuccess] = useState<string | null>(null);
-
  const handlePublish = async () => {
-   if (!selectedSite) {
-     setError('Please select a WordPress site first');
-     return;
-   }
+  if (!selectedSite) {
+    setError('Please select a WordPress site first');
+    return;
+  }
 
-   if (!post.title || !post.content) {
-     setError('Please provide both title and content for the post');
-     return;
-   }
+  if (!post.title || !post.content) {
+    setError('Please provide both title and content for the post');
+    return;
+  }
 
-   try {
-     setPublishing(true);
-     setError(null);
-     setSuccess(null);
-     
-     const response = await fetch('/api/wordpress/publish', {
-       method: 'POST',
-       headers: {
-         'Content-Type': 'application/json',
-       },
-       body: JSON.stringify({
-         siteId: selectedSite.ID,
-         title: post.title,
-         content: post.content,
-         pageId: selectedPage?.ID, // Include if posting to a specific page
-       }),
-     });
+  try {
+    setPublishing(true);
+    setError(null);
+    setSuccess(null);
+    
+    const response = await fetch('/api/wordpress/publish', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        siteId: selectedSite.ID,
+        siteUrl: selectedSite.URL, // Include the site URL
+        title: post.title,
+        content: post.content,
+        pageId: selectedPage?.ID, // Include if posting to a specific page
+        featured_media: selectedMedia?.ID, // Include the featured image if selected
+      }),
+    });
 
-     if (!response.ok) {
-       throw new Error('Failed to publish post');
-     }
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to publish post');
+    }
 
-     const result = await response.json();
-     setSuccess('Post published successfully!');
-     setPost({ title: '', content: '' }); // Clear form
-     setSelectedMedia(null); // Clear media selection
-   } catch (err) {
-     setError(err instanceof Error ? err.message : 'Failed to publish post');
-   } finally {
-     setPublishing(false);
-   }
- };
+    const result = await response.json();
+    setSuccess(`Post published successfully! View at: ${result.postUrl}`);
+    setPost({ title: '', content: '' }); // Clear form
+    setSelectedMedia(null); // Clear media selection
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to publish post');
+  } finally {
+    setPublishing(false);
+  }
+};
  
- const handleMediaUpload = (mediaData: PostMedia) => {
+const handleMediaUpload = (mediaData: PostMedia) => {
+  if (!mediaData || !mediaData.ID || !mediaData.URL) {
+    console.error("Invalid media data received:", mediaData);
+    return;
+  }
+
   setSelectedMedia(mediaData);
-  // Add the image with proper WordPress alignment and size classes
+
+  // Generate WordPress-compatible image block with proper escaping
   const imageHtml = `
 <!-- wp:image {"id":${mediaData.ID},"sizeSlug":"large","align":"center"} -->
 <figure class="wp-block-image aligncenter size-large">
-  <img src="${mediaData.URL}" alt="${mediaData.title}" class="wp-image-${mediaData.ID}"/>
-  ${mediaData.title ? `<figcaption>${mediaData.title}</figcaption>` : ''}
+  <img src="${encodeURI(mediaData.URL)}" alt="${escapeHtml(mediaData.title)}" class="wp-image-${mediaData.ID}"/>
+  ${mediaData.title ? `<figcaption>${escapeHtml(mediaData.title)}</figcaption>` : ""}
 </figure>
 <!-- /wp:image -->
-
 `;
-  
-  setPost(prev => ({
+
+  setPost((prev) => ({
     ...prev,
-    content: prev.content + imageHtml
+    content: prev.content + '\n' + imageHtml,
   }));
+};
+
+// Add this helper function at the top of your file
+const escapeHtml = (unsafe: string) => {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 };
 
  return (
@@ -182,6 +199,7 @@ export default function WordPressPublisher() {
                {publishing ? 'Publishing...' : 'Publish Post'}
              </button>
            </div>
+
          </div>
        )}
      </div>

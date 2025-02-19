@@ -1,14 +1,14 @@
 import { signIn } from "@/auth"
  
-export default function SignIn() {
+export default function LinkAccount() {
   return (
     <form
       action={async () => {
-        "use server"
+       "use server"
         await signIn("", {redirectTo: "/profile"})
       }}
     >
-      <button type="submit">Get started!</button>
+      <button type="submit">link accounts!</button>
     </form>
   )
-} 
+}   

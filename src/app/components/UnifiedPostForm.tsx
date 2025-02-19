@@ -1,22 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import LinkedInPostForm from "./linkedin/LinkedInPostForm";
 
 interface PlatformOption {
   id: string;
   name: string;
-}
-
-interface WordPressSite {
-  id: string;
-  name: string;
-  pages: WordPressPage[];
-}
-
-interface WordPressPage {
-  id: string;
-  name: string;
-  siteId: string;
 }
 
 interface PostData {
@@ -37,10 +26,8 @@ interface PostResults {
 export default function UnifiedPostForm() {
   const [platforms, setPlatforms] = useState<{
     facebook: PlatformOption[];
-    wordpressSites: WordPressSite[];
   }>({
     facebook: [],
-    wordpressSites: []
   });
 
   const [postData, setPostData] = useState<PostData>({ content: "" });
@@ -50,19 +37,16 @@ export default function UnifiedPostForm() {
   useEffect(() => {
     async function fetchPlatforms() {
       try {
-        const [fbRes, wpRes] = await Promise.all([
+        const [fbRes] = await Promise.all([
           fetch("/api/facebook/pages"),
-          fetch("/api/wordpress/sites"),
         ]);
 
-        const [fbData, wpData] = await Promise.all([
+        const [fbData] = await Promise.all([
           fbRes.json(),
-          wpRes.json(),
         ]);
 
         setPlatforms({
           facebook: fbData.data || [],
-          wordpressSites: wpData.data || []
         });
       } catch (err) {
         console.error("Failed to load platforms:", err);
@@ -90,7 +74,8 @@ export default function UnifiedPostForm() {
           
           if (!fbResponse.ok) throw new Error("Facebook post failed");
           results.facebook = { success: true };
-        } catch (err) {
+        } catch (error: unknown) {
+          console.error('Facebook post error:', error);
           results.facebook = { success: false, error: "Failed to post to Facebook" };
         }
       }
@@ -105,53 +90,25 @@ export default function UnifiedPostForm() {
           
           if (!linkedinResponse.ok) throw new Error("LinkedIn post failed");
           results.linkedin = { success: true };
-        } catch (err) {
+        } catch (error: unknown) {
+          console.error('LinkedIn post error:', error);
           results.linkedin = { success: false, error: "Failed to post to LinkedIn" };
         }
       }
 
-      if (postData.wordpressSite && postData.wordpressPage) {
-        try {
-          const wpResponse = await fetch("/api/wordpress/publish", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              siteId: postData.wordpressSite,
-              pageId: postData.wordpressPage,
-              title: "New Post", 
-              content: postData.content 
-            }),
-          });
-          
-          if (!wpResponse.ok) throw new Error("WordPress post failed");
-          results.wordpress = { success: true };
-        } catch (err) {
-          results.wordpress = { success: false, error: "Failed to post to WordPress" };
-        }
-      }
     } finally {
       setPostResults(results);
       setLoading(false);
     }
   };
 
-  // Get the current WordPress site's pages
-  const getCurrentSitePages = () => {
-    const site = platforms.wordpressSites.find(site => site.id === postData.wordpressSite);
-    return site?.pages || [];
-  };
-
   return (
     <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-4 bg-white shadow rounded">
       <h2 className="text-xl font-bold mb-4">Create a Post</h2>
+    <div>
 
-      <textarea
-        value={postData.content}
-        onChange={(e) => setPostData(prev => ({ ...prev, content: e.target.value }))}
-        placeholder="Write your post..."
-        className="w-full p-3 border rounded-md mb-3 min-h-[120px]"
-        required
-      />
+    <LinkedInPostForm />
+    </div>
 
       <div className="mb-4">
         <h3 className="font-semibold">Select Platforms:</h3>
@@ -196,69 +153,6 @@ export default function UnifiedPostForm() {
             />
             Post to LinkedIn
           </label>
-        </div>
-
-        <div className="mt-2">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={!!postData.wordpressSite}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                if (checked && platforms.wordpressSites.length > 0) {
-                  const firstSite = platforms.wordpressSites[0];
-                  setPostData(prev => ({
-                    ...prev,
-                    wordpressSite: firstSite.id,
-                    wordpressPage: firstSite.pages[0]?.id
-                  }));
-                } else {
-                  setPostData(prev => ({
-                    ...prev,
-                    wordpressSite: undefined,
-                    wordpressPage: undefined
-                  }));
-                }
-              }}
-            />
-            Post to WordPress
-          </label>
-
-          {postData.wordpressSite && (
-            <div className="space-y-2 mt-2">
-              <select
-                value={postData.wordpressSite}
-                onChange={(e) => {
-                  const newSiteId = e.target.value;
-                  const site = platforms.wordpressSites.find(s => s.id === newSiteId);
-                  setPostData(prev => ({
-                    ...prev,
-                    wordpressSite: newSiteId,
-                    wordpressPage: site?.pages[0]?.id
-                  }));
-                }}
-                className="w-full p-2 border rounded-md"
-              >
-                {platforms.wordpressSites.map((site) => (
-                  <option key={site.id} value={site.id}>
-                    {site.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={postData.wordpressPage}
-                onChange={(e) => setPostData(prev => ({ ...prev, wordpressPage: e.target.value }))}
-                className="w-full p-2 border rounded-md"
-              >
-                {getCurrentSitePages().map((page) => (
-                  <option key={page.id} value={page.id}>
-                    {page.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
       </div>
 

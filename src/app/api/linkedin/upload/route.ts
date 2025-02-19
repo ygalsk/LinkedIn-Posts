@@ -1,12 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { LinkedInClient } from "@/lib/linkedin-client";
+import clientPromise from "@/lib/db";
+import { ObjectId } from "mongodb";
 
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.access_token) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Connect to MongoDB
+    const client = await clientPromise;
+    const db = client.db();
+
+    // Convert string ID to ObjectId
+    const userId = new ObjectId(session.user.id);
+
+    const account = await db.collection("accounts").findOne({
+      userId: userId,  // Use the ObjectId here
+      provider: "linkedin",
+    });
+
+    if (!account?.access_token) {
+      return NextResponse.json({ error: "No linked LinkedIn account found" }, { status: 404 });
     }
 
     const formData = await request.formData();
@@ -15,13 +33,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    const client = new LinkedInClient(session.access_token);
-    const userInfo = await client.getUserInfo();
-    
+    const linkedInClient = new LinkedInClient(account.access_token);
+    const userInfo = await linkedInClient.getUserInfo();
     // Update the client with the user ID
-    client.userId = userInfo.sub;
+    linkedInClient.userId = userInfo.sub;
     
-    const asset = await client.uploadImage(file);
+    const asset = await linkedInClient.uploadImage(file);
     
     return NextResponse.json({ asset });
   } catch (error) {

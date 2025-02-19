@@ -86,14 +86,14 @@ export default function LinkedInPostForm() {
           {mediaItems.length} image(s) attached
         </div>
       )}
-      {error && <div className="text-red-500 mb-3">{error}</div>}
-      <button
-        type="submit"
+      <button 
+        type="submit" 
         disabled={isLoading}
-        className="w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 disabled:bg-blue-300"
+        className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
       >
-        {isLoading ? "Processing..." : "Post to LinkedIn"}
+        {isLoading ? "Posting..." : "Post to LinkedIn"}
       </button>
+      {error && <div className="text-red-500 mb-3">{error}</div>}
     </form>
   );
 }

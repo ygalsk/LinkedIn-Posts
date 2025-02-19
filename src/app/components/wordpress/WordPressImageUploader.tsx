@@ -4,9 +4,15 @@
 import { useState, useRef } from 'react';
 import Image from 'next/image';
 
+interface PostMedia {
+  ID: number;
+  URL: string;
+  title: string;
+}
+
 interface ImageUploaderProps {
   siteId: number;
-  onUploadComplete: (mediaData: any) => void;
+  onUploadComplete: (mediaData: PostMedia) => void;
 }
 
 export default function WordPressImageUploader({ siteId, onUploadComplete }: ImageUploaderProps) {
@@ -48,11 +54,19 @@ export default function WordPressImageUploader({ siteId, onUploadComplete }: Ima
         body: formData,
       });
 
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error('Failed to upload image');
+        const errorMessage = data.error || 'Failed to upload image';
+        console.error('Upload error response:', data);
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
+      if (!data.ID || !data.URL) {
+        console.error('Invalid media response:', data);
+        throw new Error('Media response missing required fields');
+      }
+
       onUploadComplete(data);
       
       // Clear the input and preview
@@ -62,6 +76,7 @@ export default function WordPressImageUploader({ siteId, onUploadComplete }: Ima
       setPreview(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload image');
+      console.error('Upload error:', err);
     } finally {
       setUploading(false);
     }

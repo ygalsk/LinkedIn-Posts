@@ -1,4 +1,3 @@
-
 import NextAuth from "next-auth";
 import Facebook from "next-auth/providers/facebook";
 import LinkedIn from "next-auth/providers/linkedin";
@@ -15,10 +14,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       authorization: {
         params: { scope: "openid profile email w_member_social" },
       },
+      allowDangerousEmailAccountLinking: true,
     }),
     Facebook({
       clientId: process.env.FACEBOOK_CLIENT_ID,
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+      allowDangerousEmailAccountLinking: true,
     }),
     WordPress({
       clientId: process.env.WORDPRESS_CLIENT_ID,
@@ -31,7 +32,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       token: {
         url: "https://public-api.wordpress.com/oauth2/token",
-        async request(context) {
+       //eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async request(context: any) {
           const { provider, params: parameters, checks, client } = context;
           const { callbackUrl } = provider;
           const tokenset = await client.grant({
@@ -46,12 +48,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       client: {
         token_endpoint_auth_method: "client_secret_post",
       },
+      allowDangerousEmailAccountLinking: true,
     }),
   ],
   callbacks: {
     async jwt({ token, account, user }) {
       if (account && account.access_token) {
         token.provider = account.provider;
+        token.providerAccountId = account.providerAccountId
         token.access_token = account.access_token;
         token.id = user.id;
       }
@@ -61,6 +65,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session) {
         session.access_token = token.access_token as string;
         session.user.id = token.id as string;
+        session.provider = token.provider as string;
+        session.providerAccountId = token.providerAccountId as string;
       }
       return session;
     },
@@ -69,5 +75,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     strategy: "jwt",
     maxAge: 24 * 60 * 60, // 24 hours
   },
-  // allowDangerousEmailAccountLinking: true,
+
 });

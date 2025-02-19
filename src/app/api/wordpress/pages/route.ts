@@ -1,12 +1,31 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import clientPromise from "@/lib/db";
+import { ObjectId } from "mongodb";
+import { WordPressClient } from "@/lib/wordpress-client";
 
 export async function GET(req: Request) {
   try {
     const session = await auth();
-    if (!session?.access_token) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Connect to MongoDB
+    const client = await clientPromise;
+    const db = client.db();
+
+    // Convert string ID to ObjectId
+    const userId = new ObjectId(session.user.id);
+
+    const account = await db.collection("accounts").findOne({
+      userId: userId,  // Use the ObjectId here
+      provider: "wordpress",
+    });
+
+    if (!account?.access_token) {
+      return NextResponse.json({ error: "No linked wordpress account found" }, { status: 404 });
+    }
           // Get siteId from URL parameters
     const { searchParams } = new URL(req.url);
     const siteId = searchParams.get('siteId');
@@ -15,18 +34,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Site ID is required" }, { status: 400 });
     }
 
-    const response = await fetch(
-      `https://public-api.wordpress.com/rest/v1.1/sites/${siteId}/posts?type=page&status=publish`,
-      {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      }
+    const wpClient = new WordPressClient(
+      'https://public-api.wordpress.com',
+      account.access_token
     );
+    const pages = await wpClient.getPages(Number(siteId));
 
-    const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json(pages);
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    console.error('Pages fetch error:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to fetch pages' },
+      { status: 500 }
+    );
   }
 }

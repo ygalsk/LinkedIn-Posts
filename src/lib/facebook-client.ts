@@ -44,3 +44,4 @@ export class FacebookClient {
         headers: { 'Content-Type': 'application/json' },
       });
     }
+  }
